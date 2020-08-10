@@ -26,33 +26,40 @@ namespace ContosoUniversity.Pages.Instructors
 
         public async Task OnGetAsync(int? id, int? courseID)
         {
-            InstructorData = new InstructorIndexData();
-            InstructorData.Instructors = await _context.Instructors
+            InstructorData = new InstructorIndexData
+            {
+                Instructors = await _context.Instructors
                 .Include(i => i.OfficeAssignment)
                 .Include(i => i.CourseAssignments)
                 .ThenInclude(i => i.Course)
                 .ThenInclude(i => i.Department)
-                .Include(i => i.CourseAssignments)
-                .ThenInclude(i => i.Course)
-                .ThenInclude(i => i.Enrollments)
-                .ThenInclude(i => i.Student)
-                .AsNoTracking()
+                //.Include(i => i.CourseAssignments)
+                //.ThenInclude(i => i.Course)
+                //.ThenInclude(i => i.Enrollments)
+                //.ThenInclude(i => i.Student)
+                //.AsNoTracking()
                 .OrderBy(i => i.LastName)
-                .ToListAsync();
+                .ToListAsync()
+            };
 
-            if (id!=null)
+            if (id != null)
             {
                 InstructorID = id.Value;
                 Instructor instructor = InstructorData.Instructors
-                    .Where(i => i.ID == id.Value).Single();
+                    .Single(i => i.ID == id.Value);
                 InstructorData.Courses = instructor.CourseAssignments.Select(s => s.Course);
             }
 
-            if (courseID!=null)
+            if (courseID != null)
             {
                 CourseID = courseID.Value;
-                var selectedCourse = InstructorData.Courses.Where(x => x.CourseID == courseID).Single();
-                InstructorData.Enrollments = selectedCourse.Enrollments;
+                var SelectedCourse = InstructorData.Courses.Single(x => x.CourseID == courseID);
+                await _context.Entry(SelectedCourse).Collection(x => x.Enrollments).LoadAsync();
+                foreach (Enrollment enrollment in SelectedCourse.Enrollments)
+                {
+                    await _context.Entry(enrollment).Reference(x => x.Student).LoadAsync();
+                }
+                InstructorData.Enrollments = SelectedCourse.Enrollments;
             }
         }
     }
